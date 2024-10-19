@@ -1,4 +1,4 @@
-package org.example.annotation;
+package ru.otus.homework.annotation;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -7,8 +7,8 @@ import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
-public @interface Test {
+public @interface BeforeSuite {
 
-    int priority() default 5;
+
 
 }

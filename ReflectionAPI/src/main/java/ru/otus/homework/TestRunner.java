@@ -1,9 +1,7 @@
-package org.example;
+package ru.otus.homework;
 
-import org.example.annotation.*;
-import org.example.exception.ConflictingAnnotationsException;
-import org.example.exception.MultipleAfterSuiteException;
-import org.example.exception.MultipleBeforeSuiteException;
+import ru.otus.homework.annotation.*;
+import ru.otus.homework.exception.ConflictingAnnotationsException;
 
 import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Method;
@@ -28,7 +26,7 @@ public class TestRunner {
             boolean afterPresent = method.isAnnotationPresent(After.class);
 
             if (testPresent && (beforeSuitePresent || afterSuitePresent || beforePresent || afterPresent)) {
-                throw new ConflictingAnnotationsException(method.getName());
+                throw new ConflictingAnnotationsException("Conflicting annotations on method: " + method.getName());
             }
 
             if (testPresent) {
@@ -39,12 +37,14 @@ public class TestRunner {
                 tests.add(method);
             } else if (beforeSuitePresent) {
                 if (beforeSuite != null) {
-                    throw new MultipleBeforeSuiteException(testSuiteClass.getName());
+                    throw new ConflictingAnnotationsException("Multiple @BeforeSuite annotations applied in class: "
+                            + testSuiteClass.getName());
                 }
                 beforeSuite = method;
             } else if (afterSuitePresent) {
                 if (afterSuite != null) {
-                    throw new MultipleAfterSuiteException(testSuiteClass.getName());
+                    throw new ConflictingAnnotationsException("Multiple @AfterSuite annotations applied in class: "
+                            + testSuiteClass.getName());
                 }
                 afterSuite = method;
             } else if (beforePresent) {

@@ -1,8 +1,8 @@
-package org.example;
+package ru.otus.homework;
 
-import org.example.annotation.*;
-import org.example.exception.ConflictingAnnotationsException;
-import org.example.exception.TestException;
+import ru.otus.homework.annotation.*;
+import ru.otus.homework.exception.ConflictingAnnotationsException;
+import ru.otus.homework.exception.TestException;
 
 public class TestSuite {
 

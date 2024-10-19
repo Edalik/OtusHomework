@@ -1,4 +1,4 @@
-package org.example.exception;
+package ru.otus.homework.exception;
 
 public class ConflictingAnnotationsException extends RuntimeException {
 
