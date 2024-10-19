@@ -14,6 +14,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import static org.mockito.Mockito.argThat;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -58,6 +59,35 @@ public class PaymentProcessorImplTest {
         paymentProcessor.makeTransfer(sourceAgreement, destinationAgreement,
                 0, 0, BigDecimal.ONE);
 
+    }
+
+    @Test
+    public void testTransferWithCommission() {
+        Agreement sourceAgreement = new Agreement();
+        sourceAgreement.setId(1L);
+
+        Agreement destinationAgreement = new Agreement();
+        destinationAgreement.setId(2L);
+
+        Account sourceAccount = new Account();
+        sourceAccount.setAmount(BigDecimal.valueOf(200));
+        sourceAccount.setType(0);
+        sourceAccount.setId(1L);
+
+        Account destinationAccount = new Account();
+        destinationAccount.setAmount(BigDecimal.valueOf(0));
+        destinationAccount.setType(0);
+
+        when(accountService.getAccounts(argThat(argument -> argument != null && argument.getId() == 1L)))
+                .thenReturn(List.of(sourceAccount));
+
+        when(accountService.getAccounts(argThat(argument -> argument != null && argument.getId() == 2L)))
+                .thenReturn(List.of(destinationAccount));
+
+        paymentProcessor.makeTransferWithComission(sourceAgreement, destinationAgreement,
+                0, 0, BigDecimal.valueOf(100), BigDecimal.valueOf(0.1));
+
+        verify(accountService).charge(argThat(id -> id.equals(1L)), argThat(amount -> amount.equals(BigDecimal.valueOf(-10.0))));
     }
 
 }

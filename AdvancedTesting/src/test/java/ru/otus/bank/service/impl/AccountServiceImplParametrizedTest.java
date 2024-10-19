@@ -5,18 +5,22 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.ArgumentMatcher;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import ru.otus.bank.dao.AccountDao;
 import ru.otus.bank.entity.Account;
+import ru.otus.bank.entity.Agreement;
 
 import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -73,6 +77,22 @@ public class AccountServiceImplParametrizedTest {
                 Arguments.of(new BigDecimal(100), new BigDecimal(0), false),
                 Arguments.of(new BigDecimal(100), new BigDecimal(-1), false)
         );
+    }
+
+    @ParameterizedTest
+    @CsvSource("1, 1, 1, 1")
+    public void testAddAccount(Long agreementId, String accountNumber, Integer type, BigDecimal amount) {
+        Agreement agreement = new Agreement();
+        agreement.setId(agreementId);
+
+        ArgumentMatcher<Account> account = argument -> argument.getAgreementId().equals(agreementId)
+                && argument.getNumber().equals(accountNumber)
+                && argument.getType().equals(type)
+                && argument.getAmount().equals(amount);
+
+        accountServiceImpl.addAccount(agreement, accountNumber, type, amount);
+
+        verify(accountDao).save(argThat(account));
     }
 
 }
