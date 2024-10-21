@@ -1,8 +1,8 @@
 package ru.otus.bank.service.impl;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.api.function.Executable;
 import org.mockito.ArgumentMatcher;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -27,7 +27,13 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-public class AccountServiceImplTest {
+class AccountServiceImplTest {
+
+    private static final BigDecimal INITIAL_AMOUNT = BigDecimal.valueOf(10);
+
+    private static final Long SOURCE_ACCOUNT_ID = 1L;
+
+    private static final Long DESTINATION_ACCOUNT_ID = 2L;
 
     @Mock
     AccountDao accountDao;
@@ -35,18 +41,27 @@ public class AccountServiceImplTest {
     @InjectMocks
     AccountServiceImpl accountServiceImpl;
 
-    @Test
-    public void testTransfer() {
-        Account sourceAccount = new Account();
+    Account sourceAccount;
+
+    Account destinationAccount;
+
+    @BeforeEach
+    void setUp() {
+        sourceAccount = new Account();
         sourceAccount.setAmount(new BigDecimal(100));
+        sourceAccount.setId(SOURCE_ACCOUNT_ID);
 
-        Account destinationAccount = new Account();
-        destinationAccount.setAmount(new BigDecimal(10));
+        destinationAccount = new Account();
+        destinationAccount.setAmount(INITIAL_AMOUNT);
+        destinationAccount.setId(DESTINATION_ACCOUNT_ID);
+    }
 
-        when(accountDao.findById(eq(1L))).thenReturn(Optional.of(sourceAccount));
-        when(accountDao.findById(eq(2L))).thenReturn(Optional.of(destinationAccount));
+    @Test
+    public void shouldTransferAmountBetweenAccounts() {
+        when(accountDao.findById(eq(SOURCE_ACCOUNT_ID))).thenReturn(Optional.of(sourceAccount));
+        when(accountDao.findById(eq(DESTINATION_ACCOUNT_ID))).thenReturn(Optional.of(destinationAccount));
 
-        accountServiceImpl.makeTransfer(1L, 2L, new BigDecimal(10));
+        accountServiceImpl.makeTransfer(SOURCE_ACCOUNT_ID, DESTINATION_ACCOUNT_ID, INITIAL_AMOUNT);
 
         assertEquals(new BigDecimal(90), sourceAccount.getAmount());
         assertEquals(new BigDecimal(20), destinationAccount.getAmount());
@@ -56,35 +71,24 @@ public class AccountServiceImplTest {
     public void testSourceNotFound() {
         when(accountDao.findById(any())).thenReturn(Optional.empty());
 
-        AccountException result = assertThrows(AccountException.class, new Executable() {
-            @Override
-            public void execute() throws Throwable {
-                accountServiceImpl.makeTransfer(1L, 2L, new BigDecimal(10));
-            }
-        });
+        AccountException result = assertThrows(AccountException.class,
+                () -> accountServiceImpl.makeTransfer(SOURCE_ACCOUNT_ID, DESTINATION_ACCOUNT_ID, INITIAL_AMOUNT));
+
         assertEquals("No source account", result.getLocalizedMessage());
     }
 
     @Test
     public void testTransferWithVerify() {
-        Account sourceAccount = new Account();
-        sourceAccount.setAmount(new BigDecimal(100));
-        sourceAccount.setId(1L);
-
-        Account destinationAccount = new Account();
-        destinationAccount.setAmount(new BigDecimal(10));
-        destinationAccount.setId(2L);
-
-        when(accountDao.findById(eq(1L))).thenReturn(Optional.of(sourceAccount));
-        when(accountDao.findById(eq(2L))).thenReturn(Optional.of(destinationAccount));
+        when(accountDao.findById(eq(SOURCE_ACCOUNT_ID))).thenReturn(Optional.of(sourceAccount));
+        when(accountDao.findById(eq(DESTINATION_ACCOUNT_ID))).thenReturn(Optional.of(destinationAccount));
 
         ArgumentMatcher<Account> sourceMatcher =
-                argument -> argument.getId().equals(1L) && argument.getAmount().equals(new BigDecimal(90));
+                argument -> argument.getId().equals(SOURCE_ACCOUNT_ID) && argument.getAmount().equals(new BigDecimal(90));
 
         ArgumentMatcher<Account> destinationMatcher =
-                argument -> argument.getId().equals(2L) && argument.getAmount().equals(new BigDecimal(20));
+                argument -> argument.getId().equals(DESTINATION_ACCOUNT_ID) && argument.getAmount().equals(new BigDecimal(20));
 
-        accountServiceImpl.makeTransfer(1L, 2L, new BigDecimal(10));
+        accountServiceImpl.makeTransfer(SOURCE_ACCOUNT_ID, DESTINATION_ACCOUNT_ID, INITIAL_AMOUNT);
 
         verify(accountDao).save(argThat(sourceMatcher));
         verify(accountDao).save(argThat(destinationMatcher));
@@ -95,15 +99,15 @@ public class AccountServiceImplTest {
         HashMap<Long, Account> accountMap = new HashMap<>();
 
         Account account1 = new Account();
-        account1.setId(1L);
+        account1.setId(SOURCE_ACCOUNT_ID);
 
         Account account2 = new Account();
-        account2.setId(2L);
+        account2.setId(DESTINATION_ACCOUNT_ID);
 
         List<Account> expectedResult = List.of(account1, account2);
 
-        accountMap.put(1L, account1);
-        accountMap.put(2L, account2);
+        accountMap.put(SOURCE_ACCOUNT_ID, account1);
+        accountMap.put(DESTINATION_ACCOUNT_ID, account2);
 
         when(accountDao.findAll()).thenReturn(accountMap.values());
 
@@ -114,24 +118,24 @@ public class AccountServiceImplTest {
 
     @Test
     public void testGetAccountsById() {
-        Long agreementId = 1L;
+        Long agreementId = SOURCE_ACCOUNT_ID;
         Agreement agreement = new Agreement();
         agreement.setId(agreementId);
 
         HashMap<Long, Account> accountMap = new HashMap<>();
 
         Account account1 = new Account();
-        account1.setId(1L);
-        account1.setAgreementId(1L);
+        account1.setId(SOURCE_ACCOUNT_ID);
+        account1.setAgreementId(SOURCE_ACCOUNT_ID);
 
         Account account2 = new Account();
-        account2.setId(2L);
-        account2.setAgreementId(2L);
+        account2.setId(DESTINATION_ACCOUNT_ID);
+        account2.setAgreementId(DESTINATION_ACCOUNT_ID);
 
         List<Account> expectedResult = List.of(account1);
 
-        accountMap.put(1L, account1);
-        accountMap.put(2L, account2);
+        accountMap.put(SOURCE_ACCOUNT_ID, account1);
+        accountMap.put(DESTINATION_ACCOUNT_ID, account2);
 
         when(accountDao.findByAgreementId(agreementId)).thenReturn(accountMap.values().stream()
                 .filter(account -> account.getAgreementId().equals(agreementId))
@@ -144,28 +148,22 @@ public class AccountServiceImplTest {
 
     @Test
     public void testCharge() {
-        Long accountId = 1L;
-        BigDecimal chargeAmount = BigDecimal.valueOf(10);
-
         Account account = new Account();
-        account.setAmount(chargeAmount);
+        account.setAmount(INITIAL_AMOUNT);
 
         when(accountDao.findById(any())).thenReturn(Optional.of(account));
         when(accountDao.save(any())).thenReturn(account);
 
-        boolean result = accountServiceImpl.charge(accountId, chargeAmount);
+        boolean result = accountServiceImpl.charge(SOURCE_ACCOUNT_ID, INITIAL_AMOUNT);
 
         assertTrue(result);
     }
 
     @Test
     public void testChargeThrows() {
-        Long accountId = 1L;
-        BigDecimal chargeAmount = BigDecimal.valueOf(10);
-
         when(accountDao.findById(any())).thenReturn(Optional.empty());
 
-        assertThrows(AccountException.class, () -> accountServiceImpl.charge(accountId, chargeAmount));
+        assertThrows(AccountException.class, () -> accountServiceImpl.charge(SOURCE_ACCOUNT_ID, INITIAL_AMOUNT));
     }
 
 }

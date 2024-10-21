@@ -1,5 +1,6 @@
 package ru.otus.bank.service.impl;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -24,13 +25,30 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-public class AccountServiceImplParametrizedTest {
+class AccountServiceImplParametrizedTest {
+
+    private static final Long SOURCE_ACCOUNT_ID = 1L;
+    private static final Long DESTINATION_ACCOUNT_ID = 2L;
 
     @Mock
     AccountDao accountDao;
 
     @InjectMocks
     AccountServiceImpl accountServiceImpl;
+
+    Account sourceAccount;
+
+    Account destinationAccount;
+
+    @BeforeEach
+    void setUp() {
+        sourceAccount = new Account();
+        sourceAccount.setId(SOURCE_ACCOUNT_ID);
+
+        destinationAccount = new Account();
+        destinationAccount.setAmount(new BigDecimal(10));
+        destinationAccount.setId(DESTINATION_ACCOUNT_ID);
+    }
 
     @ParameterizedTest
     @CsvSource({"100, 10, true", "10, 100, false", "10, 0, false", "10, -1, false"})
@@ -39,35 +57,23 @@ public class AccountServiceImplParametrizedTest {
         BigDecimal transferAmount = new BigDecimal(transferSum);
         Boolean expected = Boolean.parseBoolean(expectedResult);
 
-        Account sourceAccount = new Account();
         sourceAccount.setAmount(sourceAmount);
-        sourceAccount.setId(1L);
 
-        Account destinationAccount = new Account();
-        destinationAccount.setAmount(new BigDecimal(10));
-        destinationAccount.setId(2L);
+        when(accountDao.findById(eq(SOURCE_ACCOUNT_ID))).thenReturn(Optional.of(sourceAccount));
+        when(accountDao.findById(eq(DESTINATION_ACCOUNT_ID))).thenReturn(Optional.of(destinationAccount));
 
-        when(accountDao.findById(eq(1L))).thenReturn(Optional.of(sourceAccount));
-        when(accountDao.findById(eq(2L))).thenReturn(Optional.of(destinationAccount));
-
-        assertEquals(expected, accountServiceImpl.makeTransfer(1L, 2L, transferAmount));
+        assertEquals(expected, accountServiceImpl.makeTransfer(SOURCE_ACCOUNT_ID, DESTINATION_ACCOUNT_ID, transferAmount));
     }
 
     @ParameterizedTest
     @MethodSource("provideParameters")
     public void testTransferValidationMethodSource(BigDecimal sourceAmount, BigDecimal transferAmount, Boolean expected) {
-        Account sourceAccount = new Account();
         sourceAccount.setAmount(sourceAmount);
-        sourceAccount.setId(1L);
 
-        Account destinationAccount = new Account();
-        destinationAccount.setAmount(new BigDecimal(10));
-        destinationAccount.setId(2L);
+        when(accountDao.findById(eq(SOURCE_ACCOUNT_ID))).thenReturn(Optional.of(sourceAccount));
+        when(accountDao.findById(eq(DESTINATION_ACCOUNT_ID))).thenReturn(Optional.of(destinationAccount));
 
-        when(accountDao.findById(eq(1L))).thenReturn(Optional.of(sourceAccount));
-        when(accountDao.findById(eq(2L))).thenReturn(Optional.of(destinationAccount));
-
-        assertEquals(expected, accountServiceImpl.makeTransfer(1L, 2L, transferAmount));
+        assertEquals(expected, accountServiceImpl.makeTransfer(SOURCE_ACCOUNT_ID, DESTINATION_ACCOUNT_ID, transferAmount));
     }
 
     public static Stream<? extends Arguments> provideParameters() {
