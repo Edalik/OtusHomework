@@ -1,3 +1,4 @@
 rootProject.name = 'Homework'
 include 'ReflectionAPI'
 include 'AdvancedTesting'
+include 'StreamApi'
