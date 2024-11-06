@@ -6,7 +6,7 @@ import java.sql.SQLException;
 
 public class DataSource {
 
-    private static volatile DataSource instance;
+    private static final DataSource INSTANCE = new DataSource();
 
     private final String url = "jdbc:h2:mem:test;DB_CLOSE_DELAY=-1";
 
@@ -16,25 +16,15 @@ public class DataSource {
 
     private DataSource() {
         try (Connection conn = getConnection()) {
-            conn.createStatement().execute("CREATE TABLE items (id INT PRIMARY KEY, title VARCHAR(255), price INT)");
+            conn.createStatement().execute("CREATE TABLE IF NOT EXISTS items (id INT PRIMARY KEY, title VARCHAR(255), price INT)");
         } catch (SQLException e) {
+            System.out.println("Error creating table");
             e.printStackTrace();
         }
     }
 
     public static DataSource getInstance() {
-        DataSource localInstance = instance;
-
-        if (localInstance == null) {
-            synchronized (DataSource.class) {
-                localInstance = instance;
-                if (localInstance == null) {
-                    instance = new DataSource();
-                }
-            }
-        }
-
-        return instance;
+        return DataSource.INSTANCE;
     }
 
     public Connection getConnection() throws SQLException {

@@ -3,6 +3,7 @@ package ru.otus.patterns.iterator;
 import lombok.NoArgsConstructor;
 
 import java.util.Iterator;
+import java.util.List;
 import java.util.NoSuchElementException;
 
 @NoArgsConstructor
@@ -16,12 +17,13 @@ public class Box {
 
     private final Matryoshka magenta = new Matryoshka("magenta");
 
-    // expected: "red0", "green0", "blue0", "magenta0", "red1", "green1", "blue1", "magenta1",...
+    private final List<Matryoshka> matryoshkas = List.of(red, green, blue, magenta);
+
     public Iterator<String> getSmallFirstIterator() {
         return new Iterator<>() {
-            private int currentMatryoshka = 0;
+            private int currentMatryoshka;
 
-            private int currentItem = 0;
+            private int currentItem;
 
             @Override
             public boolean hasNext() {
@@ -42,7 +44,6 @@ public class Box {
         };
     }
 
-    // expected: "red0", "red1", ..., "red9", "green0", "green1", ..., "green9", ...
     public Iterator<String> getColorFirstIterator() {
         return new Iterator<>() {
             private int currentMatryoshka = 0;
@@ -71,21 +72,10 @@ public class Box {
 
     private String getResult(boolean hasNext, int currentMatryoshka, int currentItem) {
         if (!hasNext) {
-            throw new NoSuchElementException();
+            throw new NoSuchElementException("There is no next element");
         }
 
-        String result = null;
-
-        if (currentMatryoshka == 0) {
-            result = red.getItems().get(currentItem);
-        } else if (currentMatryoshka == 1) {
-            result = green.getItems().get(currentItem);
-        } else if (currentMatryoshka == 2) {
-            result = blue.getItems().get(currentItem);
-        } else if (currentMatryoshka == 3) {
-            result = magenta.getItems().get(currentItem);
-        }
-        return result;
+        return matryoshkas.get(currentMatryoshka).getItems().get(currentItem);
     }
 
 }
