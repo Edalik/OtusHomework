@@ -1,13 +1,13 @@
 package ru.otus.httpprotocol.service;
 
 import ru.otus.httpprotocol.exception.BusinessException;
+import ru.otus.httpprotocol.exception.RequestSizeExceededException;
 import ru.otus.httpprotocol.model.HttpRequest;
+import ru.otus.httpprotocol.util.RequestParser;
 
-import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -68,10 +68,14 @@ public class HttpServer {
     }
 
     private void handleClient(Socket clientSocket, ServerSocket serverSocket) {
-        try (InputStream input = clientSocket.getInputStream();
-             PrintWriter writer = new PrintWriter(clientSocket.getOutputStream())) {
+        PrintWriter writer = null;
+        try {
+            writer = new PrintWriter(clientSocket.getOutputStream());
 
-            HttpRequest request = parseRequest(input);
+            InputStream input = clientSocket.getInputStream();
+            RequestParser requestParser = new RequestParser();
+
+            HttpRequest request = requestParser.parseRequest(input, maxRequestSize);
             if ("GET".equalsIgnoreCase(request.getMethod()) && "/shutdown".equals(request.getUri())) {
                 sendResponse(writer, 200, "Server shutting down");
                 stop(serverSocket);
@@ -79,67 +83,30 @@ public class HttpServer {
                 sendResponse(writer, 200, request.toString());
             }
 
+        } catch (RequestSizeExceededException e) {
+            System.out.println(e.getMessage());
+            if (writer != null) {
+                sendResponse(writer, 400, e.getMessage());
+            }
         } catch (Exception e) {
-            try (PrintWriter writer = new PrintWriter(clientSocket.getOutputStream())) {
+            System.out.println(e.getMessage());
+            if (writer != null) {
                 sendResponse(writer, 500, "Internal Server Error");
-            } catch (IOException ignored) {
+            }
+        } finally {
+            if (writer != null) {
+                writer.flush();
+                writer.close();
+            }
+
+            try {
+                clientSocket.close();
+            } catch (IOException e) {
+                System.out.println("Error closing client socket: " + e.getMessage());
             }
         }
     }
 
-    private HttpRequest parseRequest(InputStream input) throws IOException {
-        BufferedReader reader = new BufferedReader(new InputStreamReader(input));
-        HttpRequest request = new HttpRequest();
-
-        String startLine = reader.readLine();
-        if (startLine == null || startLine.isEmpty()) {
-            throw new IOException("Empty request");
-        }
-        String[] requestLine = startLine.split(" ");
-        if (requestLine.length != 3) {
-            throw new IOException("Invalid request line");
-        }
-        request.setMethod(requestLine[0]);
-        String[] uriParts = requestLine[1].split("\\?");
-        request.setUri(uriParts[0]);
-
-        if (uriParts.length > 1) {
-            for (String param : uriParts[1].split("&")) {
-                String[] keyValue = param.split("=");
-                request.getQueryParams().put(keyValue[0], keyValue.length > 1 ? keyValue[1] : "");
-            }
-        }
-
-        String line;
-        int totalBytesRead = startLine.length() + 2;
-        while (!(line = reader.readLine()).isEmpty()) {
-            totalBytesRead += line.length() + 2;
-            if (totalBytesRead > maxRequestSize) {
-                throw new IOException("Request size exceeds the maximum allowed size");
-            }
-            String[] header = line.split(": ", 2);
-            request.getHeaders().put(header[0], header[1]);
-        }
-
-        String contentLengthHeader = request.getHeaders().get("Content-Length");
-        if (contentLengthHeader != null) {
-            int contentLength = Integer.parseInt(contentLengthHeader);
-            if (contentLength > 0) {
-                if (totalBytesRead + contentLength > maxRequestSize) {
-                    throw new IOException("Request size exceeds the maximum allowed size");
-                }
-
-                char[] bodyBuffer = new char[contentLength];
-                int bodyBytesRead = reader.read(bodyBuffer, 0, contentLength);
-                if (bodyBytesRead != contentLength) {
-                    throw new IOException("Failed to read full request body");
-                }
-                request.setBody(new String(bodyBuffer, 0, bodyBytesRead));
-            }
-        }
-
-        return request;
-    }
 
     private void sendResponse(PrintWriter writer, int statusCode, String message) {
         writer.println("HTTP/1.1 " + statusCode + " " + (statusCode == 200 ? "OK" : "Internal Server Error"));
