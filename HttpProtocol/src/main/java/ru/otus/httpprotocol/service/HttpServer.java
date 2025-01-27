@@ -27,6 +27,8 @@ public class HttpServer {
 
     private final ExecutorService threadPool;
 
+    private final RequestParser requestParser;
+
     public HttpServer(String configFileName) throws IOException {
         Properties properties = new Properties();
         try (InputStream input = getClass().getClassLoader().getResourceAsStream(configFileName)) {
@@ -39,6 +41,7 @@ public class HttpServer {
         this.threadPoolSize = Integer.parseInt(properties.getProperty("threadPoolSize", "10"));
         this.maxRequestSize = Integer.parseInt(properties.getProperty("maxRequestSize", "5242880"));
         this.threadPool = Executors.newFixedThreadPool(threadPoolSize);
+        this.requestParser = new RequestParser();
         this.running = true;
     }
 
@@ -71,9 +74,7 @@ public class HttpServer {
         PrintWriter writer = null;
         try {
             writer = new PrintWriter(clientSocket.getOutputStream());
-
             InputStream input = clientSocket.getInputStream();
-            RequestParser requestParser = new RequestParser();
 
             HttpRequest request = requestParser.parseRequest(input, maxRequestSize);
             if ("GET".equalsIgnoreCase(request.getMethod()) && "/shutdown".equals(request.getUri())) {

@@ -16,22 +16,22 @@ public class RequestParser {
 
     int totalBytesRead;
 
-    public HttpRequest parseRequest(InputStream input, int maxRequestSize) throws IOException, RequestSizeExceededException {
-        BufferedReader reader = new BufferedReader(new InputStreamReader(input));
+    public HttpRequest parseRequest(InputStream stream, int maxRequestSize) throws IOException, RequestSizeExceededException {
         HttpRequest request = new HttpRequest();
         totalBytesRead = 0;
+        stringBuilder.setLength(0);
 
-        parseStartLine(reader, request, maxRequestSize);
+        parseStartLine(stream, request, maxRequestSize);
 
-        parseHeaders(reader, request, maxRequestSize);
+        parseHeaders(stream, request, maxRequestSize);
 
-        parseBody(reader, request, maxRequestSize);
+        parseBody(stream, request, maxRequestSize);
 
         return request;
     }
 
-    private void parseStartLine(BufferedReader reader, HttpRequest request, int maxRequestSize) throws IOException {
-        stringBuilder.append(reader.readLine());
+    private void parseStartLine(InputStream stream, HttpRequest request, int maxRequestSize) throws IOException {
+        readLine(stream, maxRequestSize);
         totalBytesRead += stringBuilder.length();
         if (stringBuilder.isEmpty()) {
             throw new IOException("Empty request");
@@ -41,11 +41,13 @@ public class RequestParser {
 
         int indexOfSpace = stringBuilder.indexOf(" ");
         int indexOfQuestion = stringBuilder.indexOf("?");
+        boolean areQueryParamsPresent = indexOfQuestion != -1;
+        int indexOfUriEnd = areQueryParamsPresent ? indexOfQuestion : stringBuilder.lastIndexOf(" ");
 
         request.setMethod(stringBuilder.substring(0, indexOfSpace));
-        request.setUri(stringBuilder.substring(indexOfSpace + 1, indexOfQuestion));
+        request.setUri(stringBuilder.substring(indexOfSpace + 1, indexOfUriEnd));
 
-        stringBuilder.delete(0, indexOfQuestion + 1);
+        stringBuilder.delete(0, areQueryParamsPresent ? indexOfUriEnd + 1 : indexOfUriEnd);
         stringBuilder.delete(stringBuilder.lastIndexOf(" "), stringBuilder.length());
 
         parseQueryParams(request);
@@ -63,8 +65,9 @@ public class RequestParser {
         }
     }
 
-    private void parseHeaders(BufferedReader reader, HttpRequest request, int maxRequestSize) throws IOException {
-        while (!(stringBuilder.append(reader.readLine()).isEmpty())) {
+    private void parseHeaders(InputStream stream, HttpRequest request, int maxRequestSize) throws IOException {
+        readLine(stream, maxRequestSize);
+        while (!stringBuilder.isEmpty()) {
             totalBytesRead += stringBuilder.length();
             if (totalBytesRead > maxRequestSize) {
                 throw new RequestSizeExceededException();
@@ -74,10 +77,11 @@ public class RequestParser {
             request.getHeaders().put(stringBuilder.substring(0, indexOfColon), stringBuilder.substring(indexOfColon + 2));
 
             stringBuilder.setLength(0);
+            readLine(stream, maxRequestSize);
         }
     }
 
-    private void parseBody(BufferedReader reader, HttpRequest request, int maxRequestSize) throws IOException {
+    private void parseBody(InputStream stream, HttpRequest request, int maxRequestSize) throws IOException {
         if (request.getHeaders().get(CONTENT_LENGTH) != null) {
             int contentLength = Integer.parseInt(request.getHeaders().get(CONTENT_LENGTH));
             if (contentLength > 0) {
@@ -85,8 +89,8 @@ public class RequestParser {
                     throw new RequestSizeExceededException();
                 }
 
-                while (reader.ready()) {
-                    stringBuilder.append((char) reader.read());
+                while (stream.available() > 0) {
+                    stringBuilder.append((char) stream.read());
                 }
 
                 if (stringBuilder.length() != contentLength) {
@@ -94,6 +98,21 @@ public class RequestParser {
                 }
 
                 request.setBody(stringBuilder.toString());
+            }
+        }
+    }
+
+    private void readLine(InputStream stream, int maxRequestSize) throws IOException {
+        while (stream.available() > 0) {
+            char c = (char) stream.read();
+            if (c == '\n') {
+                return;
+            } else if (c != '\r') {
+                stringBuilder.append(c);
+            }
+
+            if (stringBuilder.length() + totalBytesRead > maxRequestSize) {
+                throw new RequestSizeExceededException();
             }
         }
     }
