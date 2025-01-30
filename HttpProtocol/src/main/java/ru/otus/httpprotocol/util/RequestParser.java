@@ -36,7 +36,7 @@ public class RequestParser {
         if (stringBuilder.isEmpty()) {
             throw new IOException("Empty request");
         } else if (totalBytesRead > maxRequestSize) {
-            throw new RequestSizeExceededException();
+            throw new RequestSizeExceededException(maxRequestSize);
         }
 
         int indexOfSpace = stringBuilder.indexOf(" ");
@@ -70,7 +70,7 @@ public class RequestParser {
         while (!stringBuilder.isEmpty()) {
             totalBytesRead += stringBuilder.length();
             if (totalBytesRead > maxRequestSize) {
-                throw new RequestSizeExceededException();
+                throw new RequestSizeExceededException(maxRequestSize);
             }
 
             int indexOfColon = stringBuilder.indexOf(":");
@@ -86,7 +86,7 @@ public class RequestParser {
             int contentLength = Integer.parseInt(request.getHeaders().get(CONTENT_LENGTH));
             if (contentLength > 0) {
                 if (totalBytesRead + contentLength > maxRequestSize) {
-                    throw new RequestSizeExceededException();
+                    throw new RequestSizeExceededException(maxRequestSize);
                 }
 
                 while (stream.available() > 0) {
@@ -112,7 +112,7 @@ public class RequestParser {
             }
 
             if (stringBuilder.length() + totalBytesRead > maxRequestSize) {
-                throw new RequestSizeExceededException();
+                throw new RequestSizeExceededException(maxRequestSize);
             }
         }
     }
