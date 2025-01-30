@@ -8,6 +8,7 @@ import ru.otus.hibernate.cascade.entity.Address;
 import ru.otus.hibernate.cascade.entity.Client;
 import ru.otus.hibernate.cascade.entity.Phone;
 
+import java.util.HashSet;
 import java.util.Set;
 
 public class Main {
@@ -27,8 +28,12 @@ public class Main {
             Phone phone1 = new Phone("+79999999999");
             Phone phone2 = new Phone("+79999999998");
             Set<Phone> phones = Set.of(phone1, phone2);
-            Client client = new Client("name", address, phones);
-            phones.forEach(phone -> phone.setClient(client));
+            Client client = Client.builder()
+                    .name("name")
+                    .address(address)
+                    .phones(new HashSet<>())
+                    .build();
+            phones.forEach(client::addPhone);
 
             session.persist(client);
 
